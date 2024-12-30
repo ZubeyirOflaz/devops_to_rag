@@ -47,6 +47,7 @@ class DevOpsRepoManager:
         else:  
             print(f'Failed to download repository {repo_name}: {response.status_code} - {response.text}')    
       
+    
     def list_repos(self):
         """ This method lists all the repositories in the project.
         Inputs:
@@ -64,3 +65,36 @@ class DevOpsRepoManager:
         else:  
             print(f'Failed to list repositories: {response.status_code} - {response.text}')
         return [repo['name'] for repo in repos]
+    
+
+    def crawl_and_ingest_files(self, volume_path, repository_name, allowed_file_extensions):
+        """
+        This method crawls a directory and ingests all files with a specific extension into a list of dictionaries. The aim of this method to parse all the relevant information in a given repository into a format that can easily be further processed and provided as a input to a RAG application.
+        Inputs: 
+        - volume_path(string): The path to the ingested repository
+        - repository_name(string): The name of the repository
+        - file_extension(List[string]): A list of file extensions to be ingested. Any file that doesn't have the given extension is ignored by the method.
+        """  
+        directory_path = f"{volume_path}/{repository_name}"
+        ingested_files = []  
+        ingestion_date = datetime.now()
+        for root, _, files in os.walk(directory_path):  
+            for file in files:
+                file_extension = file.split('.')[-1]  
+                if file_extension in allowed_file_extensions:  
+                    file_path = os.path.join(root, file)  
+                    relative_path = os.path.relpath(file_path, directory_path)  
+                      
+                    with open(file_path, 'r', encoding='utf-8') as f:  
+                        content = f.read()  
+                      
+                      
+                      
+                    ingested_files.append({
+                        'repository_name' : repository_name,  
+                        'path': relative_path,  
+                        'content': content,  
+                        'ingestion_date': ingestion_date  
+                    })  
+          
+        return ingested_files
