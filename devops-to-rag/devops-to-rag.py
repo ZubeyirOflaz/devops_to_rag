@@ -6,7 +6,7 @@ from requests.auth import HTTPBasicAuth
 from requests.adapters import HTTPAdapter  
 from urllib3.util.retry import Retry  
   
-class DevOpsRepoManager:  
+class DevOpsConnector:  
     def __init__(self, organization, project, pat):  
         assert isinstance(organization, str), "organization must be a string"  
         assert isinstance(project, str), "project must be a string"  
@@ -57,7 +57,20 @@ class DevOpsRepoManager:
             os.remove(zip_path)  
             print(f'Zip file {zip_path} deleted successfully')  
         else:  
-            print(f'Failed to download repository {repo_name}: {response.status_code} - {response.text}')  
+            print(f'Failed to download repository {repo_name}: {response.status_code} - {response.text}')
+
+    def dowload_wiki(self, download_path, wiki_name):
+        """ This method downloads the wiki from Azure DevOps to the specified path.
+        Inputs:
+            download_path(str): The path where the wiki will be downloaded.
+            wiki_name(str): The name of the wiki to download. The name of the wiki can be found at https://dev.azure.com/<organization>/<self.project>/_wiki/wikis/<wiki_name>
+        Outputs:
+            None
+        """
+        assert isinstance(wiki_name, str), "wiki_name must be a string"
+        assert os.path.isdir(download_path), "download_path must be a valid directory"
+
+        self.download_repo(wiki_name, 'wikiMaster', download_path) 
   
     def list_repos(self):  
         """ This method lists all the repositories in the project.  
@@ -111,4 +124,17 @@ class DevOpsRepoManager:
                         'content': content,  
                         'ingestion_date': ingestion_date  
                     })  
-        return ingested_files  
+        return ingested_files 
+    def summarize_content(self, parsed_file_list, summarization_model, custom_prompt = None):
+        """
+        This function uses the files processed by the `crawl_and_ingest_files` method to summarize the content of the files. The summarization is done using the `summarization_model`. If a custom prompt is provided, it will be used instead of the default prompt.
+        Inputs:
+        - parsed_file_list(List[Dict]): A list of dictionaries containing the parsed files. Each dictionary should have the following keys: 'repository_name', 'path', 'content', and 'ingestion_date'.
+        - summarization_model(langchain chat model): The model instance to use for summarization. Validated to be working with OpenAI, Anthropic and Ollama and should work with any other Langchain Chat Model.
+        Output:
+        parsed_file_list(List[Dict]): The inputted parsed_file_list with an additional key 'summary' containing the summarized content.
+        """
+        default_prompt = """
+        You are a helpful chat assistant that summarizes the given text. The text is either a code file that belongs to a bigger repository or it is a markdown file that is part of an Azure Wiki. 
+        The assistant should summarize the content of the file to the shortest context that gives a high level understanding of what the script accomplishes. 
+        The assistant should specify dependencies that are used by the script.""" 
